@@ -40,9 +40,9 @@ export default async function DashboardPage() {
           Send invoices.
         </h1>
         <p>
-          Start the clock, type what you&rsquo;re doing, hit go. The team sees
-          it. Export the period when it&rsquo;s billing day &mdash; Claude turns
-          it into an invoice.
+          Start the clock, type what you&rsquo;re working on, hit Start. When
+          billing day comes around, generate the invoice from{" "}
+          <i>Invoices &rarr; Create</i> and email the PDF.
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Profile, Project } from "@/lib/types";
+import { DatePicker } from "./date-picker";
 
 const PRESETS = [
   { key: "today", label: "Today" },
@@ -77,21 +78,11 @@ export function FilterBar({
         </label>
         <label className="field">
           From
-          <input
-            className="input sm"
-            type="date"
-            name="from"
-            defaultValue={current.from ?? ""}
-          />
+          <DatePicker name="from" defaultValue={current.from} />
         </label>
         <label className="field">
           To
-          <input
-            className="input sm"
-            type="date"
-            name="to"
-            defaultValue={current.to ?? ""}
-          />
+          <DatePicker name="to" defaultValue={current.to} />
         </label>
         <button type="submit" className="btn primary">
           Apply

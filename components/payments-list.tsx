@@ -8,6 +8,7 @@ import {
 } from "@/app/actions";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { PaymentWithUser, Profile } from "@/lib/types";
+import { DatePicker } from "./date-picker";
 
 type Props = {
   payments: PaymentWithUser[];
@@ -118,13 +119,7 @@ function NewPaymentForm({
         </label>
         <label className="field">
           Date
-          <input
-            className="input"
-            type="date"
-            name="paid_at"
-            defaultValue={today}
-            required
-          />
+          <DatePicker name="paid_at" defaultValue={today} required />
         </label>
         <label className="field" style={{ gridColumn: "span 2" }}>
           Note
@@ -234,13 +229,10 @@ function PaymentEditRow({
       <div className="form-grid">
         <label className="field">
           Date
-          <input
-            className="input"
-            type="date"
+          <DatePicker
             name="paid_at"
             defaultValue={payment.paid_at}
             required
-            autoFocus
           />
         </label>
         <label className="field">

@@ -118,8 +118,9 @@ export default async function ExportPage({
         <h1>Export</h1>
         <p>
           Pick a period (and optionally a user or project), then either{" "}
-          <b>Print → Save as PDF</b> or download the CSV. Drop the CSV into
-          Claude with &ldquo;make me an invoice&rdquo; and you&rsquo;re done.
+          <b>Print &rarr; Save as PDF</b> for a snapshot of the period&rsquo;s
+          activity, or download the CSV for further analysis. For sending an
+          invoice to a client, use <i>Invoices</i> instead.
         </p>
       </div>
 

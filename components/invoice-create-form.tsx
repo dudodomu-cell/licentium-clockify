@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createInvoiceAction, type CreateInvoiceState } from "@/app/actions";
 import type { InvoiceSettings, Profile, Project } from "@/lib/types";
+import { DatePicker } from "./date-picker";
 
 const INITIAL_STATE: CreateInvoiceState = { error: null };
 
@@ -40,20 +41,15 @@ export function InvoiceCreateForm({
       <div className="form-grid">
         <label className="field">
           Period from
-          <input
-            className="input"
-            type="date"
+          <DatePicker
             name="period_from"
             defaultValue={defaultPeriodFrom}
             required
-            autoFocus
           />
         </label>
         <label className="field">
           Period to
-          <input
-            className="input"
-            type="date"
+          <DatePicker
             name="period_to"
             defaultValue={defaultPeriodTo}
             required
