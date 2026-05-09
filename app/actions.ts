@@ -344,13 +344,20 @@ export async function updateInvoiceSettingsAction(formData: FormData) {
 
 // Aggregate matching entries into invoice line items, then snapshot the
 // invoice. Each line is a (description, project, rate) tuple — repeated
-// occurrences over multiple days collapse into one line.
-export async function createInvoiceAction(formData: FormData) {
+// occurrences over multiple days collapse into one line. Uses
+// useActionState shape so the form can render validation errors inline
+// instead of falling through to Next.js's generic error overlay.
+export type CreateInvoiceState = { error: string | null };
+
+export async function createInvoiceAction(
+  _prevState: CreateInvoiceState,
+  formData: FormData,
+): Promise<CreateInvoiceState> {
   const { supabase, user } = await requireUser();
 
   const periodFrom = str(formData, "period_from");
   const periodTo = str(formData, "period_to");
-  if (!periodFrom || !periodTo) throw new Error("Period required.");
+  if (!periodFrom || !periodTo) return { error: "Period from/to required." };
   const filterUserId = strOrNull(formData, "filter_user_id");
   const filterProjectId = strOrNull(formData, "filter_project_id");
 
@@ -360,13 +367,12 @@ export async function createInvoiceAction(formData: FormData) {
   const paymentTerms = str(formData, "payment_terms");
   const notes = str(formData, "notes");
   const currency = str(formData, "currency") || "USD";
-  if (!recipientName) throw new Error("Recipient name required.");
+  if (!recipientName) return { error: "Recipient name required." };
 
   const settings = await fetchInvoiceSettings();
 
   // Fetch matching entries — period is inclusive on both ends.
   const sinceIso = new Date(periodFrom + "T00:00:00").toISOString();
-  // until is exclusive — bump by one day so periodTo is included.
   const toExclusive = new Date(periodTo + "T00:00:00");
   toExclusive.setDate(toExclusive.getDate() + 1);
   const untilIso = toExclusive.toISOString();
@@ -378,13 +384,12 @@ export async function createInvoiceAction(formData: FormData) {
     projectId: filterProjectId ?? undefined,
   });
 
-  type Key = string;
-  const aggregate = new Map<Key, InvoiceLineItem>();
+  const aggregate = new Map<string, InvoiceLineItem>();
   let totalMinutes = 0;
   let totalAmount = 0;
 
   for (const e of entries) {
-    if (e.ends_at === null) continue; // skip running entries
+    if (e.ends_at === null) continue;
     const minutes = durationMinutes(e.starts_at, e.ends_at);
     if (minutes <= 0) continue;
     const hours = minutes / 60;
@@ -412,7 +417,10 @@ export async function createInvoiceAction(formData: FormData) {
   }
 
   if (aggregate.size === 0) {
-    throw new Error("No time entries match those filters — nothing to invoice.");
+    return {
+      error:
+        "No time entries match those filters — pick a different period, user, or project.",
+    };
   }
 
   const lineItems = [...aggregate.values()]
@@ -426,11 +434,10 @@ export async function createInvoiceAction(formData: FormData) {
   const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
   const totalAmountRounded = Math.round(totalAmount * 100) / 100;
 
-  // Get next invoice number atomically via the SQL function.
   const { data: numberData, error: numberError } = await supabase.rpc(
     "next_invoice_number",
   );
-  if (numberError) throw numberError;
+  if (numberError) return { error: `Number generation failed: ${numberError.message}` };
   const invoiceNumber = numberData as string;
 
   const { data: inserted, error: insertError } = await supabase
@@ -456,7 +463,7 @@ export async function createInvoiceAction(formData: FormData) {
     })
     .select("id")
     .single();
-  if (insertError) throw insertError;
+  if (insertError) return { error: `Insert failed: ${insertError.message}` };
 
   refresh();
   redirect(`/invoices/${inserted.id}`);

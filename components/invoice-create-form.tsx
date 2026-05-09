@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { createInvoiceAction } from "@/app/actions";
+import { useActionState, useState } from "react";
+import { createInvoiceAction, type CreateInvoiceState } from "@/app/actions";
 import type { InvoiceSettings, Profile, Project } from "@/lib/types";
+
+const INITIAL_STATE: CreateInvoiceState = { error: null };
 
 export function InvoiceCreateForm({
   settings,
@@ -18,6 +20,10 @@ export function InvoiceCreateForm({
   defaultPeriodTo: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    createInvoiceAction,
+    INITIAL_STATE,
+  );
 
   if (!open) {
     return (
@@ -30,7 +36,7 @@ export function InvoiceCreateForm({
   }
 
   return (
-    <form action={createInvoiceAction} className="form">
+    <form action={formAction} className="form">
       <div className="form-grid">
         <label className="field">
           Period from
@@ -133,13 +139,22 @@ export function InvoiceCreateForm({
         </label>
       </div>
       <div className="form-actions">
-        <button type="submit" className="btn primary">
-          Generate invoice
+        <button type="submit" className="btn primary" disabled={pending}>
+          {pending ? "Generating…" : "Generate invoice"}
         </button>
         <button type="button" className="btn" onClick={() => setOpen(false)}>
           Cancel
         </button>
       </div>
+      {state.error && (
+        <div
+          className="auth-msg err"
+          style={{ marginTop: 12 }}
+          role="alert"
+        >
+          {state.error}
+        </div>
+      )}
     </form>
   );
 }
