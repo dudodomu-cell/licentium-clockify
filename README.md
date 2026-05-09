@@ -5,6 +5,9 @@ Internal time tracker for Licentium. Replaces the paid Clockify subscription wit
 - Magic-link sign-in via Supabase (allowlisted emails only)
 - One running timer per person; manual entries and per-entry rate edits
 - Everyone sees everyone — only the owner (or an admin) can edit/delete
+- Payments tracked alongside hours → live "owed / prepaid" balance per person
+- Invoice generator with snapshotted line items, sequential numbering, paid/unpaid status
+- Browser-tab title shows the running timer from any page (`[01:24:15] Licentium Clockify`)
 - CSV download and printable PDF export, ready to feed into Claude for invoice generation
 
 ---
@@ -23,6 +26,7 @@ cp .env.local.example .env.local
 
 1. In the Supabase dashboard, create a **new project** (free tier is fine — we use ~1 MB).
 2. Open the **SQL editor** and run the entire contents of `supabase/schema.sql`. This creates the tables, the row-level security policies, the profile-on-signup trigger, and seeds Dmytro and Illia as admins.
+   - **If upgrading from an earlier deploy** (you already ran `schema.sql` once and only have profiles/projects/time_entries), run `supabase/migrations/002_payments_invoices.sql` instead — it adds the payments + invoices + invoice_settings tables idempotently.
 3. Open **Authentication → Email Templates** if you want to customise the magic-link email. The defaults from Supabase work out of the box.
 4. **Authentication → URL Configuration**:
    - **Site URL**: `http://localhost:3000` for dev, `https://clockify.licentium.io` (or whatever Illia wires up) for prod

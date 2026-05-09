@@ -1,5 +1,15 @@
 import { getSupabaseServer } from "./supabase/server";
-import type { EntryWithJoins, Profile, Project } from "./types";
+import { durationMinutes } from "./format";
+import type {
+  EntryWithJoins,
+  Invoice,
+  InvoiceSettings,
+  Payment,
+  PaymentWithUser,
+  Profile,
+  Project,
+  UserBalance,
+} from "./types";
 
 // ---------------------------------------------------------------
 // Profiles
@@ -126,4 +136,159 @@ export async function fetchRunningEntry(userId: string): Promise<EntryWithJoins 
   if (error) throw error;
   if (!data) return null;
   return mapEntry(data as unknown as RawJoinRow);
+}
+
+// ---------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------
+
+type RawPaymentJoinRow = {
+  id: string;
+  user_id: string;
+  amount: number | string;
+  paid_at: string;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+  profiles: { full_name: string; email: string } | null;
+};
+
+function mapPayment(row: RawPaymentJoinRow): PaymentWithUser {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    amount: Number(row.amount),
+    paid_at: row.paid_at,
+    note: row.note,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    user_name: row.profiles?.full_name ?? "—",
+    user_email: row.profiles?.email ?? "",
+  };
+}
+
+export async function fetchPayments(opts: { userId?: string } = {}): Promise<PaymentWithUser[]> {
+  const supabase = await getSupabaseServer();
+  let q = supabase
+    .from("payments")
+    .select("*, profiles(full_name, email)")
+    .order("paid_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (opts.userId) q = q.eq("user_id", opts.userId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawPaymentJoinRow[]).map(mapPayment);
+}
+
+// ---------------------------------------------------------------
+// Balances — earned minus paid, per user, all-time
+// ---------------------------------------------------------------
+
+export async function computeBalances(): Promise<UserBalance[]> {
+  // We deliberately compute in JS instead of via SQL aggregates: the team is
+  // small (a handful of users, low thousands of entries), and doing it here
+  // keeps the SQL schema simpler and matches how the dashboard already works.
+  const [profiles, entries, payments] = await Promise.all([
+    fetchProfiles(),
+    fetchEntries({}),
+    fetchPayments({}),
+  ]);
+
+  const out = new Map<string, UserBalance>();
+  for (const p of profiles) {
+    out.set(p.id, {
+      user_id: p.id,
+      user_name: p.full_name,
+      user_email: p.email,
+      default_rate: Number(p.default_rate),
+      total_minutes: 0,
+      total_earned: 0,
+      total_paid: 0,
+      balance: 0,
+    });
+  }
+
+  for (const e of entries) {
+    const b = out.get(e.user_id);
+    if (!b) continue;
+    const m = durationMinutes(e.starts_at, e.ends_at);
+    b.total_minutes += m;
+    b.total_earned += (m / 60) * Number(e.rate);
+  }
+
+  for (const p of payments) {
+    const b = out.get(p.user_id);
+    if (!b) continue;
+    b.total_paid += Number(p.amount);
+  }
+
+  for (const b of out.values()) {
+    b.balance = b.total_earned - b.total_paid;
+  }
+
+  return [...out.values()].sort((a, b) => b.balance - a.balance);
+}
+
+// ---------------------------------------------------------------
+// Invoice settings + invoices
+// ---------------------------------------------------------------
+
+export async function fetchInvoiceSettings(): Promise<InvoiceSettings> {
+  const supabase = await getSupabaseServer();
+  const { data, error } = await supabase
+    .from("invoice_settings")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw error;
+  return data as InvoiceSettings;
+}
+
+function mapInvoice(row: Record<string, unknown>): Invoice {
+  return {
+    id: row.id as string,
+    number: row.number as string,
+    issued_at: row.issued_at as string,
+    period_from: row.period_from as string,
+    period_to: row.period_to as string,
+    issuer_name: row.issuer_name as string,
+    issuer_details: (row.issuer_details as string) ?? "",
+    recipient_name: row.recipient_name as string,
+    recipient_email: (row.recipient_email as string | null) ?? null,
+    recipient_details: (row.recipient_details as string) ?? "",
+    payment_terms: (row.payment_terms as string) ?? "",
+    notes: (row.notes as string) ?? "",
+    currency: (row.currency as string) ?? "USD",
+    total_amount: Number(row.total_amount),
+    total_hours: Number(row.total_hours),
+    line_items: (row.line_items as Invoice["line_items"]) ?? [],
+    filter_user_id: (row.filter_user_id as string | null) ?? null,
+    filter_project_id: (row.filter_project_id as string | null) ?? null,
+    paid_at: (row.paid_at as string | null) ?? null,
+    created_by: (row.created_by as string | null) ?? null,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function fetchInvoices(): Promise<Invoice[]> {
+  const supabase = await getSupabaseServer();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .order("issued_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map(mapInvoice);
+}
+
+export async function fetchInvoiceById(id: string): Promise<Invoice | null> {
+  const supabase = await getSupabaseServer();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return mapInvoice(data as Record<string, unknown>);
 }

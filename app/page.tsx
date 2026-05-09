@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth";
 import {
+  computeBalances,
   fetchEntries,
   fetchProfiles,
   fetchProjects,
@@ -9,16 +10,18 @@ import { TimerCard } from "@/components/timer-card";
 import { EntriesGrouped } from "@/components/entries-grouped";
 import { ManualEntryForm } from "@/components/manual-entry-form";
 import { WeekStats } from "@/components/week-stats";
+import { BalanceStats } from "@/components/balance-stats";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
 
-  const [projects, profiles, running] = await Promise.all([
+  const [projects, profiles, running, balances] = await Promise.all([
     fetchProjects(),
     fetchProfiles(),
     fetchRunningEntry(profile.id),
+    computeBalances(),
   ]);
 
   const sevenDaysAgo = new Date(
@@ -78,6 +81,16 @@ export default async function DashboardPage() {
           </div>
         </div>
         <WeekStats entries={entries} profiles={profiles} />
+      </section>
+
+      <section>
+        <div className="section-head">
+          <div className="section-num">
+            <b>04 /</b> Balance
+          </div>
+          <div className="section-num mute">all time · earned − paid</div>
+        </div>
+        <BalanceStats balances={balances} />
       </section>
     </main>
   );
