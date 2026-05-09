@@ -1,4 +1,4 @@
-import { formatHours, formatMoney } from "@/lib/format";
+import { formatDuration, formatMoney } from "@/lib/format";
 import type { UserBalance } from "@/lib/types";
 
 export function BalanceStats({ balances }: { balances: UserBalance[] }) {
@@ -50,14 +50,14 @@ export function BalanceStats({ balances }: { balances: UserBalance[] }) {
               </div>
               <div className="card-sub">
                 {owed
-                  ? `owed · ${formatHours(b.total_minutes)}h logged · ${
+                  ? `owed · ${formatDuration(b.total_minutes)} logged · ${
                       b.default_rate > 0
-                        ? `${formatHours(owedHours * 60)}h to clear`
+                        ? `${formatDuration(owedHours * 60)} to clear`
                         : "no rate set"
                     }`
                   : prepaid
-                    ? `prepaid · ${formatHours(b.total_minutes)}h logged`
-                    : `settled · ${formatHours(b.total_minutes)}h logged`}
+                    ? `prepaid · ${formatDuration(b.total_minutes)} logged`
+                    : `settled · ${formatDuration(b.total_minutes)} logged`}
               </div>
             </div>
           </div>

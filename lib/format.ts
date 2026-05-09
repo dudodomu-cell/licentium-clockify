@@ -24,6 +24,16 @@ export function formatHours(minutes: number): string {
   return formatNum(minutes / 60);
 }
 
+// Human-friendly duration: "01 h 30 m". Used in UI; for CSV / invoice line
+// items keep the decimal-hours `formatHours` so totals stay easy to multiply.
+export function formatDuration(minutes: number): string {
+  if (minutes < 0) minutes = 0;
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")} m`;
+}
+
 // HH:MM:SS for the running timer.
 export function formatTimer(seconds: number): string {
   if (seconds < 0) seconds = 0;

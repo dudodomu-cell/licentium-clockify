@@ -5,7 +5,7 @@ import { EntriesGrouped } from "@/components/entries-grouped";
 import { FilterBar } from "@/components/filter-bar";
 import { ManualEntryForm } from "@/components/manual-entry-form";
 import { WeekStats } from "@/components/week-stats";
-import { durationMinutes, formatHours, formatMoney } from "@/lib/format";
+import { durationMinutes, formatDuration, formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +107,7 @@ export default async function HistoryPage({
           <div className="card">
             <div className="card-label">Hours</div>
             <div>
-              <div className="card-value">{formatHours(totalMinutes)}h</div>
+              <div className="card-value">{formatDuration(totalMinutes)}</div>
               <div className="card-sub">
                 {entries.length} entr{entries.length === 1 ? "y" : "ies"}
               </div>

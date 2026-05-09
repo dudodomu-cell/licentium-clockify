@@ -7,7 +7,7 @@ import {
   toggleArchiveProjectAction,
   updateProjectAction,
 } from "@/app/actions";
-import { formatHours, formatMoney } from "@/lib/format";
+import { formatDuration, formatMoney } from "@/lib/format";
 import type { Project } from "@/lib/types";
 
 type Stats = { minutes: number; earned: number; users: number };
@@ -184,7 +184,7 @@ function ProjectRow({
         </span>
       </div>
       <div className="mute">{project.client ?? "—"}</div>
-      <div className="num">{formatHours(minutes)}h</div>
+      <div className="num">{formatDuration(minutes)}</div>
       <div className="num">{formatMoney(earned)}</div>
       <div className="row-actions">
         <button

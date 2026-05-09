@@ -1,4 +1,4 @@
-import { durationMinutes, formatHours, formatMoney } from "@/lib/format";
+import { durationMinutes, formatDuration, formatMoney } from "@/lib/format";
 import type { EntryWithJoins, Profile } from "@/lib/types";
 
 type UserBucket = {
@@ -57,7 +57,7 @@ export function WeekStats({
       <div className="card">
         <div className="card-label">Team total</div>
         <div>
-          <div className="card-value">{formatHours(totalMinutes)}h</div>
+          <div className="card-value">{formatDuration(totalMinutes)}</div>
           <div className="card-sub">{formatMoney(totalEarned)}</div>
         </div>
       </div>
@@ -65,7 +65,7 @@ export function WeekStats({
         <div className="card" key={u.user_id}>
           <div className="card-label">{u.name}</div>
           <div>
-            <div className="card-value">{formatHours(u.minutes)}h</div>
+            <div className="card-value">{formatDuration(u.minutes)}</div>
             <div className="card-sub">{formatMoney(u.earned)}</div>
           </div>
         </div>

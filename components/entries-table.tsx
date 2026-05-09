@@ -7,7 +7,7 @@ import {
 } from "@/app/actions";
 import {
   durationMinutes,
-  formatHours,
+  formatDuration,
   formatMoney,
   formatTime,
   toDateTimeLocal,
@@ -69,7 +69,7 @@ export function EntriesTable({
         <div></div>
         <div></div>
         <div></div>
-        <div className="num">{formatHours(totalMinutes)}h</div>
+        <div className="num">{formatDuration(totalMinutes)}</div>
         <div className="num">{formatMoney(totalEarned)}</div>
         <div></div>
       </div>
@@ -146,7 +146,7 @@ function EntryRow({
       <div className="num date-cell">
         {entry.ends_at ? formatTime(entry.ends_at) : <span className="dim">—</span>}
       </div>
-      <div className="num">{formatHours(minutes)}h</div>
+      <div className="num">{formatDuration(minutes)}</div>
       <div className="num">{formatMoney(amount)}</div>
       <div className="row-actions">
         {canEdit && (

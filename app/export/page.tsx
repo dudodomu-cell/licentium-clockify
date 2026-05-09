@@ -12,7 +12,7 @@ import { WeekStats } from "@/components/week-stats";
 import {
   durationMinutes,
   formatDate,
-  formatHours,
+  formatDuration,
   formatMoney,
 } from "@/lib/format";
 
@@ -183,7 +183,7 @@ export default async function ExportPage({
           <div className="card">
             <div className="card-label">Total hours</div>
             <div>
-              <div className="card-value">{formatHours(totalMinutes)}h</div>
+              <div className="card-value">{formatDuration(totalMinutes)}</div>
               <div className="card-sub">
                 {entries.length} entr{entries.length === 1 ? "y" : "ies"}
               </div>
@@ -242,7 +242,7 @@ export default async function ExportPage({
                     </span>
                   </div>
                   <div className="num mute">{share.toFixed(1)}%</div>
-                  <div className="num">{formatHours(r.minutes)}h</div>
+                  <div className="num">{formatDuration(r.minutes)}</div>
                   <div className="num">{formatMoney(r.earned)}</div>
                   <div></div>
                 </div>
@@ -251,7 +251,7 @@ export default async function ExportPage({
             <div className="ledger-row foot projects-grid">
               <div>Total</div>
               <div></div>
-              <div className="num">{formatHours(totalMinutes)}h</div>
+              <div className="num">{formatDuration(totalMinutes)}</div>
               <div className="num">{formatMoney(totalEarned)}</div>
               <div></div>
             </div>
