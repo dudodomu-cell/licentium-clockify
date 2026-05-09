@@ -2,6 +2,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import {
   fetchInvoiceSettings,
   fetchInvoices,
+  fetchNotificationSettings,
   fetchProfiles,
   fetchProjects,
 } from "@/lib/db";
@@ -9,6 +10,7 @@ import { rangeFromPreset } from "@/lib/range";
 import { InvoiceCreateForm } from "@/components/invoice-create-form";
 import { InvoiceList } from "@/components/invoice-list";
 import { InvoiceSettingsForm } from "@/components/invoice-settings-form";
+import { NotificationSettingsForm } from "@/components/notification-settings-form";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +22,18 @@ function isoDate(d: Date | null): string {
 export default async function InvoicesPage() {
   const profile = await getCurrentProfile();
 
-  const [settings, invoices, profiles, projects] = await Promise.all([
-    fetchInvoiceSettings(),
-    fetchInvoices(),
-    fetchProfiles(),
-    fetchProjects(),
-  ]);
+  const [settings, notificationSettings, invoices, profiles, projects] =
+    await Promise.all([
+      fetchInvoiceSettings(),
+      fetchNotificationSettings(),
+      fetchInvoices(),
+      fetchProfiles(),
+      fetchProjects(),
+    ]);
+
+  // env vars are server-only — pass a derived boolean to the client form so
+  // the UI can warn about missing webhook without ever leaking the URL.
+  const webhookConfigured = Boolean(process.env.SLACK_WEBHOOK_URL);
 
   // Default the new-invoice period picker to "last month" — most common
   // billing cadence.
@@ -56,6 +64,10 @@ export default async function InvoicesPage() {
             <div className="section-num mute">admin only</div>
           </div>
           <InvoiceSettingsForm settings={settings} />
+          <NotificationSettingsForm
+            settings={notificationSettings}
+            webhookConfigured={webhookConfigured}
+          />
         </section>
       )}
 

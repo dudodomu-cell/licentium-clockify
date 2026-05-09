@@ -8,6 +8,7 @@ Internal time tracker for Licentium. Replaces the paid Clockify subscription wit
 - Payments tracked alongside hours → live "owed / prepaid" balance per person
 - Invoice generator with snapshotted line items, sequential numbering, paid/unpaid status
 - Browser-tab title shows the running timer from any page (`[01:24:15] Licentium Clockify`)
+- Optional Slack notifications for invoice created / paid / payment logged (toggleable per-event in admin settings)
 - CSV download and printable PDF export, ready to feed into Claude for invoice generation
 
 ---
@@ -26,7 +27,7 @@ cp .env.local.example .env.local
 
 1. In the Supabase dashboard, create a **new project** (free tier is fine — we use ~1 MB).
 2. Open the **SQL editor** and run the entire contents of `supabase/schema.sql`. This creates the tables, the row-level security policies, the profile-on-signup trigger, and seeds Dmytro and Illia as admins.
-   - **If upgrading from an earlier deploy** (you already ran `schema.sql` once and only have profiles/projects/time_entries), run `supabase/migrations/002_payments_invoices.sql` instead — it adds the payments + invoices + invoice_settings tables idempotently.
+   - **If upgrading from an earlier deploy** (you already ran `schema.sql` once and only have profiles/projects/time_entries), run the migrations in order: `supabase/migrations/002_payments_invoices.sql` (payments + invoices + invoice_settings), then `supabase/migrations/003_notification_settings.sql` (Slack toggles). Both are idempotent and safe to re-run.
 3. Open **Authentication → Email Templates** if you want to customise the magic-link email. The defaults from Supabase work out of the box.
 4. **Authentication → URL Configuration**:
    - **Site URL**: `http://localhost:3000` for dev, `https://clockify.licentium.io` (or whatever Illia wires up) for prod
@@ -108,7 +109,28 @@ Or skip the CSV: hit **Print → Save as PDF** on the Export page. The page is p
 
 ---
 
-## 5. Architecture notes (for future-you debugging at 1 AM)
+## 5. Slack notifications (optional)
+
+Two layers of "off":
+
+1. **Env unset** — if `SLACK_WEBHOOK_URL` is not set in Vercel, the integration is fully dead and the in-app toggles are ignored. This is the master kill switch.
+2. **In-app toggles** — once the webhook is set, an admin opens `/invoices` → Settings → "Notifications: Slack" and flips the master toggle + the per-event toggles (Invoice created / Invoice paid / Payment logged).
+
+Setup:
+
+1. In Slack: **Apps → Incoming Webhooks → Add to Slack → pick a channel** (e.g. `#licentium-money`). Copy the webhook URL — looks like `https://hooks.slack.com/services/T.../B.../xxx`.
+2. In Vercel project settings → Environment Variables, add `SLACK_WEBHOOK_URL=<that URL>` for Production. Redeploy.
+3. In the app: `/invoices` → Settings → "Notifications: Slack" → tick "Slack notifications enabled" + the events you want → Save.
+
+What gets posted:
+
+- **Invoice created** — number, recipient, amount, period, who created it
+- **Invoice paid** — number, recipient, amount (only on the unpaid → paid transition; un-marking is silent)
+- **Payment logged** — recipient name, amount, date, note, who recorded it
+
+Failures (Slack down, bad URL, timeout) log to Vercel runtime logs and never break the surrounding action — invoice creation / payment logging always succeeds even if Slack rejects the post.
+
+## 6. Architecture notes (for future-you debugging at 1 AM)
 
 - `middleware.ts` runs on every request. It refreshes the Supabase cookie session, gates non-public routes, and enforces the `ALLOWED_EMAILS` list. Anyone signed in with an email not on the list is signed out and bounced to `/login?error=not-allowed`.
 - All mutations are **server actions** in `app/actions.ts`. RLS in `supabase/schema.sql` is the actual authorization boundary — the actions assume RLS rejects bad writes.
@@ -116,7 +138,7 @@ Or skip the CSV: hit **Print → Save as PDF** on the Export page. The page is p
 - Time-zone math (`lib/range.ts`) uses system-local time. Set `TZ=Europe/Kyiv` on Vercel.
 - The CSV route at `/api/export/csv` mirrors the filters of the Export page exactly — the page builds the CSV link from its own searchParams.
 
-## 6. Things explicitly skipped (YAGNI for now)
+## 7. Things explicitly skipped (YAGNI for now)
 
 - Profile-edit UI (default rate, full name) — set via SQL or add later if it gets annoying
 - Email branding (Supabase sends from `noreply@mail.app.supabase.io` by default; can be swapped to `noreply@licentium.io` once Cloudflare DNS migration lands)

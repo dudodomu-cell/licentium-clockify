@@ -4,6 +4,7 @@ import type {
   EntryWithJoins,
   Invoice,
   InvoiceSettings,
+  NotificationSettings,
   Payment,
   PaymentWithUser,
   Profile,
@@ -293,4 +294,19 @@ export async function fetchInvoiceById(id: string): Promise<Invoice | null> {
   if (error) throw error;
   if (!data) return null;
   return mapInvoice(data as Record<string, unknown>);
+}
+
+// ---------------------------------------------------------------
+// Notification settings
+// ---------------------------------------------------------------
+
+export async function fetchNotificationSettings(): Promise<NotificationSettings> {
+  const supabase = await getSupabaseServer();
+  const { data, error } = await supabase
+    .from("notification_settings")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw error;
+  return data as NotificationSettings;
 }

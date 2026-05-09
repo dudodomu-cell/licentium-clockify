@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { fetchEntries, fetchInvoiceSettings } from "@/lib/db";
 import { durationMinutes } from "@/lib/format";
+import { notifySlack } from "@/lib/slack";
 import type { InvoiceLineItem } from "@/lib/types";
 
 // ---------------------------------------------------------------
@@ -289,6 +290,23 @@ export async function addPaymentAction(formData: FormData) {
   });
   if (error) throw error;
 
+  // Slack notification (best-effort; swallowed on failure inside notifySlack).
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", [userId, user.id]);
+  const paidUser = profiles?.find((p) => p.id === userId);
+  const logger = profiles?.find((p) => p.id === user.id);
+  await notifySlack({
+    type: "payment_logged",
+    userName: paidUser?.full_name ?? paidUser?.email ?? "unknown",
+    amount,
+    paidAt,
+    note,
+    loggedBy: logger?.full_name ?? user.email ?? "unknown",
+    isSelfLog: userId === user.id,
+  });
+
   refresh();
 }
 
@@ -336,6 +354,29 @@ export async function updateInvoiceSettingsAction(formData: FormData) {
   };
   const { error } = await supabase
     .from("invoice_settings")
+    .update(patch)
+    .eq("id", 1);
+  if (error) throw error;
+  refresh();
+}
+
+// ---------------------------------------------------------------
+// Notification settings
+// ---------------------------------------------------------------
+
+export async function updateNotificationSettingsAction(formData: FormData) {
+  const { supabase } = await requireUser();
+  const patch = {
+    slack_enabled: formData.get("slack_enabled") === "on",
+    slack_notify_invoice_created:
+      formData.get("slack_notify_invoice_created") === "on",
+    slack_notify_invoice_paid:
+      formData.get("slack_notify_invoice_paid") === "on",
+    slack_notify_payment_logged:
+      formData.get("slack_notify_payment_logged") === "on",
+  };
+  const { error } = await supabase
+    .from("notification_settings")
     .update(patch)
     .eq("id", 1);
   if (error) throw error;
@@ -465,6 +506,23 @@ export async function createInvoiceAction(
     .single();
   if (insertError) return { error: `Insert failed: ${insertError.message}` };
 
+  // Slack notification before redirect.
+  const { data: creator } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .single();
+  await notifySlack({
+    type: "invoice_created",
+    number: invoiceNumber,
+    recipient: recipientName,
+    amount: totalAmountRounded,
+    currency,
+    periodFrom,
+    periodTo,
+    createdBy: creator?.full_name ?? creator?.email ?? user.email ?? "unknown",
+  });
+
   refresh();
   redirect(`/invoices/${inserted.id}`);
 }
@@ -483,6 +541,25 @@ export async function toggleInvoicePaidAction(formData: FormData) {
     .update(patch)
     .eq("id", id);
   if (error) throw error;
+
+  // Notify Slack only when transitioning to PAID — unmark-paid is silent.
+  if (!currentlyPaid) {
+    const { data: invoice } = await supabase
+      .from("invoices")
+      .select("number, recipient_name, total_amount, currency")
+      .eq("id", id)
+      .single();
+    if (invoice) {
+      await notifySlack({
+        type: "invoice_paid",
+        number: invoice.number,
+        recipient: invoice.recipient_name,
+        amount: Number(invoice.total_amount),
+        currency: invoice.currency,
+      });
+    }
+  }
+
   refresh();
 }
 

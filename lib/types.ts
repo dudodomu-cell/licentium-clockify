@@ -104,6 +104,15 @@ export type InvoiceSettings = {
   updated_at: string;
 };
 
+export type NotificationSettings = {
+  id: number;
+  slack_enabled: boolean;
+  slack_notify_invoice_created: boolean;
+  slack_notify_invoice_paid: boolean;
+  slack_notify_payment_logged: boolean;
+  updated_at: string;
+};
+
 // Per-user balance: earned from time entries minus payments received.
 export type UserBalance = {
   user_id: string;
