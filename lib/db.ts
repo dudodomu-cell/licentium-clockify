@@ -169,9 +169,11 @@ function mapPayment(row: RawPaymentJoinRow): PaymentWithUser {
 
 export async function fetchPayments(opts: { userId?: string } = {}): Promise<PaymentWithUser[]> {
   const supabase = await getSupabaseServer();
+  // payments has TWO FKs to profiles (user_id and created_by) — disambiguate
+  // explicitly by FK name, otherwise PostgREST refuses with PGRST201.
   let q = supabase
     .from("payments")
-    .select("*, profiles(full_name, email)")
+    .select("*, profiles!payments_user_id_fkey(full_name, email)")
     .order("paid_at", { ascending: false })
     .order("created_at", { ascending: false });
   if (opts.userId) q = q.eq("user_id", opts.userId);
