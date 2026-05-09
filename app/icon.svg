@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="geometricPrecision">
+  <!-- Mondaine-style Swiss railway clock -->
+  <circle cx="16" cy="16" r="15.25" fill="#ffffff" stroke="#0a0a0a" stroke-width="0.5"/>
+
+  <!-- 12 hour markers — cardinals (12/3/6/9) thicker -->
+  <g fill="#0a0a0a" transform="translate(16 16)">
+    <rect x="-1.1" y="-15" width="2.2" height="4" transform="rotate(0)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(30)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(60)"/>
+    <rect x="-1.1" y="-15" width="2.2" height="4" transform="rotate(90)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(120)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(150)"/>
+    <rect x="-1.1" y="-15" width="2.2" height="4" transform="rotate(180)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(210)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(240)"/>
+    <rect x="-1.1" y="-15" width="2.2" height="4" transform="rotate(270)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(300)"/>
+    <rect x="-0.5" y="-15" width="1" height="3" transform="rotate(330)"/>
+  </g>
+
+  <!-- Hour hand — pointing at 10 (10:10 pose) -->
+  <g transform="translate(16 16) rotate(300)">
+    <rect x="-1.3" y="-7.5" width="2.6" height="9" fill="#0a0a0a"/>
+  </g>
+
+  <!-- Minute hand — pointing at 2 -->
+  <g transform="translate(16 16) rotate(60)">
+    <rect x="-0.9" y="-11" width="1.8" height="12.5" fill="#0a0a0a"/>
+  </g>
+
+  <!-- Second hand — Mondaine signature disc, in our brand teal -->
+  <g transform="translate(16 16)">
+    <rect x="-0.35" y="-12.5" width="0.7" height="14.5" fill="#5eead4"/>
+    <circle cx="0" cy="-10.5" r="2" fill="#5eead4"/>
+  </g>
+
+  <!-- Center pin -->
+  <circle cx="16" cy="16" r="1.3" fill="#0a0a0a"/>
+</svg>
