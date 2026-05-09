@@ -1,0 +1,84 @@
+import { getCurrentProfile } from "@/lib/auth";
+import {
+  fetchEntries,
+  fetchProfiles,
+  fetchProjects,
+  fetchRunningEntry,
+} from "@/lib/db";
+import { TimerCard } from "@/components/timer-card";
+import { EntriesGrouped } from "@/components/entries-grouped";
+import { ManualEntryForm } from "@/components/manual-entry-form";
+import { WeekStats } from "@/components/week-stats";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const profile = await getCurrentProfile();
+
+  const [projects, profiles, running] = await Promise.all([
+    fetchProjects(),
+    fetchProfiles(),
+    fetchRunningEntry(profile.id),
+  ]);
+
+  const sevenDaysAgo = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const entries = await fetchEntries({
+    since: sevenDaysAgo,
+    includeRunning: true,
+  });
+
+  return (
+    <main>
+      <div className="hero">
+        <h1>
+          Track time.<br />
+          Send invoices.
+        </h1>
+        <p>
+          Start the clock, type what you&rsquo;re doing, hit go. The team sees
+          it. Export the period when it&rsquo;s billing day &mdash; Claude turns
+          it into an invoice.
+        </p>
+      </div>
+
+      <section>
+        <div className="section-head">
+          <div className="section-num">
+            <b>01 /</b> Timer
+          </div>
+        </div>
+        <TimerCard running={running} projects={projects} />
+      </section>
+
+      <section>
+        <div className="section-head">
+          <div className="section-num">
+            <b>02 /</b> Recent entries
+          </div>
+        </div>
+        <ManualEntryForm
+          projects={projects}
+          defaultRate={Number(profile.default_rate)}
+        />
+        <EntriesGrouped
+          entries={entries}
+          projects={projects}
+          currentUserId={profile.id}
+          isAdmin={profile.is_admin}
+          emptyText="No time logged in the last 7 days."
+        />
+      </section>
+
+      <section>
+        <div className="section-head">
+          <div className="section-num">
+            <b>03 /</b> Last 7 days
+          </div>
+        </div>
+        <WeekStats entries={entries} profiles={profiles} />
+      </section>
+    </main>
+  );
+}
