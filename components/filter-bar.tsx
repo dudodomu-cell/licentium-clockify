@@ -15,6 +15,7 @@ export function FilterBar({
   projects,
   current,
   basePath,
+  showUserFilter = true,
 }: {
   profiles: Profile[];
   projects: Project[];
@@ -26,6 +27,7 @@ export function FilterBar({
     preset?: string;
   };
   basePath: string;
+  showUserFilter?: boolean;
 }) {
   return (
     <div style={{ marginBottom: 24 }}>
@@ -41,21 +43,23 @@ export function FilterBar({
         ))}
       </div>
       <form method="get" action={basePath} className="filters">
-        <label className="field">
-          User
-          <select
-            className="select sm"
-            name="user"
-            defaultValue={current.user ?? ""}
-          >
-            <option value="">Everyone</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showUserFilter && (
+          <label className="field">
+            User
+            <select
+              className="select sm"
+              name="user"
+              defaultValue={current.user ?? ""}
+            >
+              <option value="">Everyone</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field">
           Project
           <select

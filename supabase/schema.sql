@@ -108,11 +108,11 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
   SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
 $$;
 
--- Profiles: every signed-in user can read every profile (the team is small and
--- visibility is intentionally open). Users can update their own; admins can
--- update anyone's (e.g. to change a default rate).
-CREATE POLICY profiles_select ON public.profiles
-  FOR SELECT TO authenticated USING (true);
+-- Profiles: members can only read their own profile. Admins read everything.
+-- Members can update their own row; admins can update anyone's.
+CREATE POLICY profiles_select_self_or_admin ON public.profiles
+  FOR SELECT TO authenticated
+  USING (id = auth.uid() OR public.is_admin());
 
 CREATE POLICY profiles_update_self ON public.profiles
   FOR UPDATE TO authenticated
@@ -136,9 +136,11 @@ CREATE POLICY projects_update ON public.projects
 CREATE POLICY projects_delete ON public.projects
   FOR DELETE TO authenticated USING (true);
 
--- Time entries: everyone reads; only the owner mutates (admins can mutate any).
-CREATE POLICY entries_select ON public.time_entries
-  FOR SELECT TO authenticated USING (true);
+-- Time entries: members read only their own entries; admins read everything.
+-- Only the owner inserts (RLS) or admins on anyone's behalf via update.
+CREATE POLICY entries_select_own_or_admin ON public.time_entries
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin());
 
 CREATE POLICY entries_insert_self ON public.time_entries
   FOR INSERT TO authenticated
@@ -172,8 +174,10 @@ CREATE INDEX payments_paid_at_idx ON public.payments(paid_at DESC);
 
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY payments_select ON public.payments
-  FOR SELECT TO authenticated USING (true);
+-- Payments: members see only their own; admins see everything.
+CREATE POLICY payments_select_own_or_admin ON public.payments
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin());
 
 CREATE POLICY payments_insert_owner_or_admin ON public.payments
   FOR INSERT TO authenticated
@@ -210,8 +214,9 @@ INSERT INTO public.invoice_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.invoice_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY settings_select ON public.invoice_settings
-  FOR SELECT TO authenticated USING (true);
+-- Invoice settings are admin-only (read + write).
+CREATE POLICY settings_select_admin ON public.invoice_settings
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY settings_update_admin ON public.invoice_settings
   FOR UPDATE TO authenticated
@@ -263,8 +268,9 @@ CREATE INDEX invoices_paid_idx      ON public.invoices(paid_at);
 
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY invoices_select ON public.invoices
-  FOR SELECT TO authenticated USING (true);
+-- Invoices are admin-only (read + write).
+CREATE POLICY invoices_select_admin ON public.invoices
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY invoices_insert_admin ON public.invoices
   FOR INSERT TO authenticated WITH CHECK (public.is_admin());
@@ -307,8 +313,9 @@ INSERT INTO public.notification_settings (id) VALUES (1) ON CONFLICT (id) DO NOT
 
 ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY notif_select ON public.notification_settings
-  FOR SELECT TO authenticated USING (true);
+-- Notification settings are admin-only (read + write).
+CREATE POLICY notif_select_admin ON public.notification_settings
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY notif_update_admin ON public.notification_settings
   FOR UPDATE TO authenticated

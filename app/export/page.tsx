@@ -1,4 +1,4 @@
-import { getCurrentProfile } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { fetchEntries, fetchProfiles, fetchProjects } from "@/lib/db";
 import {
   rangeFromDates,
@@ -41,7 +41,7 @@ export default async function ExportPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  await getCurrentProfile(); // gate
+  await requireAdmin(); // admin-only — exports include money
 
   let range;
   const preset = (sp.preset ?? "") as Preset;

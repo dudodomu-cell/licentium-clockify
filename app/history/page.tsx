@@ -94,6 +94,7 @@ export default async function HistoryPage({
             preset: sp.from || sp.to ? undefined : preset || "thisMonth",
           }}
           basePath="/history"
+          showUserFilter={profile.is_admin}
         />
       </section>
 

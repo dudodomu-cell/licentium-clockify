@@ -1,4 +1,4 @@
-import { getCurrentProfile } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import {
   fetchInvoiceSettings,
   fetchInvoices,
@@ -20,7 +20,7 @@ function isoDate(d: Date | null): string {
 }
 
 export default async function InvoicesPage() {
-  const profile = await getCurrentProfile();
+  const profile = await requireAdmin();
 
   const [settings, notificationSettings, invoices, profiles, projects] =
     await Promise.all([

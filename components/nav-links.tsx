@@ -3,23 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const links = [
+type Link = { href: string; label: string; admin?: boolean };
+
+const LINKS: Link[] = [
   { href: "/", label: "Dashboard" },
   { href: "/history", label: "History" },
   { href: "/projects", label: "Projects" },
   { href: "/payments", label: "Payments" },
-  { href: "/invoices", label: "Invoices" },
-  { href: "/export", label: "Export" },
+  { href: "/invoices", label: "Invoices", admin: true },
+  { href: "/team", label: "Team", admin: true },
+  { href: "/export", label: "Export", admin: true },
   { href: "/profile", label: "Profile" },
-] as const;
+];
 
-export function NavLinks() {
+export function NavLinks({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const visible = LINKS.filter((l) => !l.admin || isAdmin);
   return (
     <>
-      {links.map(({ href, label }) => (
+      {visible.map(({ href, label }) => (
         <Link key={href} href={href} className={isActive(href) ? "active" : ""}>
           {label}
         </Link>

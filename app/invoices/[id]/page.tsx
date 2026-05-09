@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentProfile } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { fetchInvoiceById } from "@/lib/db";
 import { formatDate, formatMoney, formatNum } from "@/lib/format";
 import { PrintButton } from "@/components/print-button";
@@ -16,7 +16,7 @@ type Params = Promise<{ id: string }>;
 
 export default async function InvoicePage({ params }: { params: Params }) {
   const { id } = await params;
-  const profile = await getCurrentProfile();
+  const profile = await requireAdmin();
   const invoice = await fetchInvoiceById(id);
   if (!invoice) notFound();
 

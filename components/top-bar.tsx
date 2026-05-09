@@ -30,7 +30,7 @@ export async function TopBar() {
           § <b>Licentium</b> Clockify
         </div>
         <nav className="nav">
-          <NavLinks />
+          <NavLinks isAdmin={Boolean(profile?.is_admin)} />
           <span className="who">
             <b>{display}</b>
             {profile?.is_admin ? <span className="dim"> · admin</span> : null}

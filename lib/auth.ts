@@ -5,6 +5,18 @@ import type { Profile } from "./types";
 // Resolves the current user's profile or redirects to /login. Use at the top
 // of every protected page.
 export async function getCurrentProfile(): Promise<Profile> {
+  return getCurrentProfileImpl();
+}
+
+// Same but bounces non-admins to the dashboard. Use at the top of admin-only
+// pages (invoices, export, team).
+export async function requireAdmin(): Promise<Profile> {
+  const profile = await getCurrentProfileImpl();
+  if (!profile.is_admin) redirect("/");
+  return profile;
+}
+
+async function getCurrentProfileImpl(): Promise<Profile> {
   const supabase = await getSupabaseServer();
   const {
     data: { user },

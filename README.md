@@ -4,7 +4,9 @@ Internal time tracker for Licentium. Replaces the paid Clockify subscription wit
 
 - Magic-link sign-in via Supabase (allowlisted emails only)
 - One running timer per person; manual entries and per-entry rate edits
-- Everyone sees everyone — only the owner (or an admin) can edit/delete
+- **Two roles:**
+  - **Admin** — sees everything across the team (hours, money, balances, payments, invoices); can edit anyone&rsquo;s entries.
+  - **Member** — sees only their own entries, payments, and balance. Cannot see any other person&rsquo;s data. Has no access to Invoices, Export, or Team pages.
 - Payments tracked alongside hours → live "owed / prepaid" balance per person
 - Invoice generator with snapshotted line items, sequential numbering, paid/unpaid status
 - Browser-tab title shows the running timer from any page (`[01:24:15] Licentium Clockify`)
@@ -27,7 +29,11 @@ cp .env.local.example .env.local
 
 1. In the Supabase dashboard, create a **new project** (free tier is fine — we use ~1 MB).
 2. Open the **SQL editor** and run the entire contents of `supabase/schema.sql`. This creates the tables, the row-level security policies, the profile-on-signup trigger, and seeds Dmytro and Illia as admins.
-   - **If upgrading from an earlier deploy** (you already ran `schema.sql` once and only have profiles/projects/time_entries), run the migrations in order: `supabase/migrations/002_payments_invoices.sql` (payments + invoices + invoice_settings), then `supabase/migrations/003_notification_settings.sql` (Slack toggles). Both are idempotent and safe to re-run.
+   - **If upgrading from an earlier deploy**, run the migrations in order:
+     - `supabase/migrations/002_payments_invoices.sql` (payments + invoices + invoice_settings)
+     - `supabase/migrations/003_notification_settings.sql` (Slack toggles)
+     - `supabase/migrations/004_member_privacy.sql` (member privacy: only own data)
+     All are idempotent and safe to re-run.
 3. Open **Authentication → Email Templates** if you want to customise the magic-link email. The defaults from Supabase work out of the box.
 4. **Authentication → URL Configuration**:
    - **Site URL**: `http://localhost:3000` for dev, `https://clockify.licentium.io` (or whatever Illia wires up) for prod
@@ -85,15 +91,31 @@ If Illia points `clockify.licentium.io` at the Vercel project, magic links will 
 
 ## 3. Onboarding a teammate
 
-1. Add their email to `ALLOWED_EMAILS` in Vercel (and locally if needed). Redeploy.
+1. Add their email to `ALLOWED_EMAILS` in Vercel. Redeploy.
 2. They visit the app, type their email, click the magic link.
-3. The Postgres trigger in `schema.sql` automatically creates their profile row (default rate $0). They can update their default rate in the DB or via the profile UI (TODO if needed) — until then it's whatever was set on signup, and they can override it per entry on each row.
-4. To make someone an admin, edit the `admin_emails` array in `schema.sql`'s `handle_new_user` function before they sign up, **or** run this SQL once they've signed up:
+3. The Postgres trigger in `schema.sql` automatically creates their profile row with default rate `$15/hr`. They can update their own rate via `/profile`, or an admin can set it via Profile → Team rates.
+4. By default the new user is a **member** — they only see their own data.
+5. To promote someone to **admin** (sees everything, can edit anyone), either edit the hardcoded list in `schema.sql`&rsquo;s `handle_new_user` function before their first signup, or run this SQL after:
    ```sql
    UPDATE public.profiles SET is_admin = true WHERE email = 'them@example.com';
    ```
 
-To remove someone, drop them from `ALLOWED_EMAILS` and redeploy. The middleware signs them out on their next request. If you want to fully purge their data, delete them from `auth.users` in Supabase — the FK cascade removes their profile and entries.
+To remove someone, drop them from `ALLOWED_EMAILS` and redeploy. The middleware signs them out on their next request. If you want to fully purge their data, delete them from `auth.users` in Supabase — the FK cascade removes their profile, entries, and payments.
+
+### Privacy model
+
+Members and admins see different things. The split is enforced at the database level via row-level security, so even a clever member can&rsquo;t bypass it through the API:
+
+| Page | Member sees | Admin sees |
+|---|---|---|
+| Dashboard | Own timer, own recent entries, own balance | Everything |
+| History | Own entries with own filters | Everyone, with user filter |
+| Projects | Project list, own hours per project | Everyone&rsquo;s hours per project |
+| Payments | Own payments only | Everyone&rsquo;s payments |
+| Profile | Own profile only | Own + Team rates table |
+| Invoices | (no access) | Full |
+| Export | (no access) | Full |
+| Team | (no access) | List of everyone with stats; per-person detail page |
 
 ---
 

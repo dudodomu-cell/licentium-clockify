@@ -27,13 +27,22 @@ function csvCell(v: string | number | null | undefined): string {
 
 export async function GET(request: NextRequest) {
   // Middleware already gated authentication; this is a defence-in-depth check
-  // in case the route is hit directly.
+  // in case the route is hit directly. CSV export contains money, so it's
+  // gated to admins only.
   const supabase = await getSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
     return new Response("Unauthorized", { status: 401 });
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.is_admin) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const url = new URL(request.url);
