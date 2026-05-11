@@ -165,11 +165,38 @@ section { margin-bottom: 64px; }
 }
 .timer-display.running { color: var(--accent); }
 .timer-display.dim { color: var(--text-dim); }
+.timer-buttons { display: flex; gap: 6px; align-items: stretch; }
+.timer-buttons form { display: inline; }
 @media (max-width: 760px) {
   .timer { grid-template-columns: 1fr; }
   .timer-info { grid-column: auto; }
   .timer-display { text-align: center; font-size: 36px; padding: 8px 0; }
+  .timer-buttons { width: 100%; }
+  .timer-buttons form { flex: 1; }
+  .timer-buttons .btn { width: 100%; justify-content: center; }
 }
+
+/* ========== Pause / Resume banner ========== */
+.paused-banner {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--bg-elev); border: 1px solid var(--warning);
+  border-radius: 2px; padding: 14px 18px; margin-bottom: 12px;
+  gap: 14px; flex-wrap: wrap;
+}
+.paused-banner-info {
+  display: flex; align-items: center; gap: 12px;
+  flex: 1 1 auto; min-width: 0; flex-wrap: wrap;
+}
+.paused-label {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--warning); letter-spacing: 0.1em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.paused-desc { font-size: 14px; }
+.paused-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Continue (▶) row icon: hover tint with our accent so it reads as a go button */
+.row-icon.go:hover { color: var(--accent); }
 
 /* ========== Inputs ========== */
 .input, .select, .textarea {

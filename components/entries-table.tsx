@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   deleteEntryAction,
+  startTimerAction,
   updateEntryAction,
 } from "@/app/actions";
 import {
@@ -149,6 +150,22 @@ function EntryRow({
       <div className="num">{formatDuration(minutes)}</div>
       <div className="num">{formatMoney(amount)}</div>
       <div className="row-actions">
+        <form action={startTimerAction} style={{ display: "inline" }}>
+          <input type="hidden" name="description" value={entry.description} />
+          <input
+            type="hidden"
+            name="project_id"
+            value={entry.project_id ?? ""}
+          />
+          <button
+            type="submit"
+            className="row-icon go"
+            title="Resume this task"
+            aria-label="Resume"
+          >
+            ▶
+          </button>
+        </form>
         {canEdit && (
           <>
             <button
