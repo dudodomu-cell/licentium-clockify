@@ -1,12 +1,14 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { fetchEntries, fetchInvoiceSettings } from "@/lib/db";
 import { durationMinutes } from "@/lib/format";
 import { notifySlack } from "@/lib/slack";
-import { localToUtcIso } from "@/lib/tz";
+import { localToUtcIso, TEAM_TZ } from "@/lib/tz";
+import { VIEWER_TZ_COOKIE } from "@/lib/viewer-tz";
 import type { InvoiceLineItem } from "@/lib/types";
 
 // ---------------------------------------------------------------
@@ -46,6 +48,20 @@ function refresh() {
   revalidatePath("/export");
   revalidatePath("/payments");
   revalidatePath("/invoices");
+}
+
+// Reads the submitter's timezone from the cookie so that datetime-local
+// strings sent by their browser are interpreted in their wall-clock.
+async function submitterTz(): Promise<string> {
+  const c = await cookies();
+  const tz = c.get(VIEWER_TZ_COOKIE)?.value;
+  if (!tz) return TEAM_TZ;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return tz;
+  } catch {
+    return TEAM_TZ;
+  }
 }
 
 // ---------------------------------------------------------------
@@ -125,12 +141,13 @@ export async function createEntryAction(formData: FormData) {
     throw new Error("Start and end times are required for manual entries.");
   }
 
+  const tz = await submitterTz();
   await supabase.from("time_entries").insert({
     user_id: user.id,
     project_id: projectId,
     description,
-    starts_at: localToUtcIso(startsAt),
-    ends_at: localToUtcIso(endsAt),
+    starts_at: localToUtcIso(startsAt, tz),
+    ends_at: localToUtcIso(endsAt, tz),
     rate,
   });
 
@@ -148,13 +165,14 @@ export async function updateEntryAction(formData: FormData) {
   const endsAt = strOrNull(formData, "ends_at");
   const rate = num(formData, "rate");
 
+  const tz = await submitterTz();
   const patch: Record<string, unknown> = {
     description,
     project_id: projectId,
-    starts_at: localToUtcIso(startsAt),
+    starts_at: localToUtcIso(startsAt, tz),
     rate,
   };
-  patch.ends_at = endsAt ? localToUtcIso(endsAt) : null;
+  patch.ends_at = endsAt ? localToUtcIso(endsAt, tz) : null;
 
   // RLS enforces that only the owner (or an admin) can perform this update.
   const { error } = await supabase

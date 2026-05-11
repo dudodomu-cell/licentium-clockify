@@ -1,6 +1,6 @@
-// Formatters shared between server and client. All time/date formatting is
-// pinned to TEAM_TZ (Europe/Kyiv) via Intl.DateTimeFormat so SSR output and
-// client output agree — no hydration mismatches, no UTC drift on Vercel.
+// Formatters shared between server and client. All TZ-sensitive formatters
+// accept an optional `tz` argument (default TEAM_TZ). Pages thread the
+// viewer's TZ in; client components read it via useViewerTz() and pass it.
 
 import { TEAM_TZ } from "./tz";
 
@@ -37,7 +37,7 @@ export function formatDuration(minutes: number): string {
   return `${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")} m`;
 }
 
-// HH:MM:SS for the running timer (this one is duration-based, no TZ).
+// HH:MM:SS for the running timer (duration-based, TZ-independent).
 export function formatTimer(seconds: number): string {
   if (seconds < 0) seconds = 0;
   const h = Math.floor(seconds / 3600);
@@ -46,20 +46,35 @@ export function formatTimer(seconds: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
-// Cached formatter instances — Intl.DateTimeFormat is comparatively
-// expensive to construct, so reuse across calls.
-const dateFmt = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TEAM_TZ,
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-const timeFmt = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TEAM_TZ,
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
+// Construct-on-demand formatters — the `tz` is determined at runtime so we
+// can't pre-cache one global instance per locale.
+function dateFmt(tz: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+function timeFmt(tz: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+function dtLocalFmt(tz: string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
 function toDate(input: string | Date | null | undefined): Date | null {
   if (input == null) return null;
@@ -67,54 +82,51 @@ function toDate(input: string | Date | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-// dd.mm.yyyy in TEAM_TZ.
-export function formatDate(input: string | Date | null | undefined): string {
-  const d = toDate(input);
-  if (!d) return "—";
-  // en-GB renders as dd/mm/yyyy; we use dots instead.
-  return dateFmt.format(d).replace(/\//g, ".");
-}
-
-// dd.mm.yyyy HH:MM in TEAM_TZ.
-export function formatDateTime(
+// dd.mm.yyyy in `tz` (default TEAM_TZ).
+export function formatDate(
   input: string | Date | null | undefined,
+  tz: string = TEAM_TZ,
 ): string {
   const d = toDate(input);
   if (!d) return "—";
-  return `${formatDate(d)} ${timeFmt.format(d)}`;
+  // en-GB renders dd/mm/yyyy; we use dots instead.
+  return dateFmt(tz).format(d).replace(/\//g, ".");
 }
 
-// HH:MM in TEAM_TZ.
-export function formatTime(input: string | Date | null | undefined): string {
+// dd.mm.yyyy HH:MM in `tz`.
+export function formatDateTime(
+  input: string | Date | null | undefined,
+  tz: string = TEAM_TZ,
+): string {
   const d = toDate(input);
   if (!d) return "—";
-  return timeFmt.format(d);
+  return `${formatDate(d, tz)} ${timeFmt(tz).format(d)}`;
 }
 
-// "yyyy-MM-ddTHH:mm" formatted in TEAM_TZ, suitable as a default value for
-// <input type="datetime-local">. sv-SE locale gives ISO-style date format
-// out of the box.
-const dtLocalFmt = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: TEAM_TZ,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
+// HH:MM in `tz`.
+export function formatTime(
+  input: string | Date | null | undefined,
+  tz: string = TEAM_TZ,
+): string {
+  const d = toDate(input);
+  if (!d) return "—";
+  return timeFmt(tz).format(d);
+}
 
+// "yyyy-MM-ddTHH:mm" formatted in `tz`, for <input type="datetime-local">.
+// sv-SE locale gives ISO-style date format out of the box.
 export function toDateTimeLocal(
   input: string | Date | null | undefined,
+  tz: string = TEAM_TZ,
 ): string {
   const d = toDate(input);
   if (!d) return "";
-  const parts = dtLocalFmt.formatToParts(d);
+  const parts = dtLocalFmt(tz).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }
 
-// Minutes between two ISO timestamps (TZ-neutral — just arithmetic).
+// Minutes between two ISO timestamps (TZ-neutral arithmetic).
 export function durationMinutes(
   startsAt: string,
   endsAt: string | null,

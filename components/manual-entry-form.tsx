@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createEntryAction } from "@/app/actions";
 import { toDateTimeLocal } from "@/lib/format";
 import type { Project } from "@/lib/types";
+import { useViewerTz } from "./viewer-tz-provider";
 
 export function ManualEntryForm({
   projects,
@@ -13,6 +14,7 @@ export function ManualEntryForm({
   defaultRate: number;
 }) {
   const [open, setOpen] = useState(false);
+  const viewerTz = useViewerTz();
 
   const handle = async (formData: FormData) => {
     await createEntryAction(formData);
@@ -65,7 +67,7 @@ export function ManualEntryForm({
             className="input"
             type="datetime-local"
             name="starts_at"
-            defaultValue={toDateTimeLocal(hourAgo)}
+            defaultValue={toDateTimeLocal(hourAgo, viewerTz)}
             required
           />
         </label>
@@ -75,7 +77,7 @@ export function ManualEntryForm({
             className="input"
             type="datetime-local"
             name="ends_at"
-            defaultValue={toDateTimeLocal(now)}
+            defaultValue={toDateTimeLocal(now, viewerTz)}
             required
           />
         </label>

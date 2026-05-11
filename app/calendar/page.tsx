@@ -2,30 +2,32 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth";
 import { fetchEntries, fetchProfiles } from "@/lib/db";
 import { durationMinutes, formatDuration } from "@/lib/format";
-import { TEAM_TZ, tzAddDays, tzDate, tzMondayOfWeek, tzYmd } from "@/lib/tz";
+import { tzAddDays, tzDate, tzMondayOfWeek, tzYmd } from "@/lib/tz";
+import { getViewerTz } from "@/lib/viewer-tz";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ month?: string; user?: string }>;
 
-function isoDateTz(d: Date): string {
-  const { year, month, day } = tzYmd(d);
+function isoDateTz(d: Date, tz: string): string {
+  const { year, month, day } = tzYmd(d, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function isoMonthTz(d: Date): string {
-  const { year, month } = tzYmd(d);
+function isoMonthTz(d: Date, tz: string): string {
+  const { year, month } = tzYmd(d, tz);
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 function parseMonth(
   monthStr: string | undefined,
+  tz: string,
 ): { year: number; month: number } {
   if (monthStr) {
     const [y, m] = monthStr.split("-").map(Number);
     if (y && m >= 1 && m <= 12) return { year: y, month: m };
   }
-  const ymd = tzYmd(new Date());
+  const ymd = tzYmd(new Date(), tz);
   return { year: ymd.year, month: ymd.month };
 }
 
@@ -38,16 +40,16 @@ export default async function CalendarPage({
 }) {
   const sp = await searchParams;
   const profile = await getCurrentProfile();
+  const viewerTz = await getViewerTz();
 
-  const { year, month } = parseMonth(sp.month);
-  const monthStart = tzDate(year, month, 1);
-  const monthEnd = tzDate(year, month + 1, 1); // exclusive
+  const { year, month } = parseMonth(sp.month, viewerTz);
+  const monthStart = tzDate(year, month, 1, 0, 0, viewerTz);
 
   const userIdFilter = profile.is_admin ? sp.user || undefined : profile.id;
 
-  // Grid starts on Monday on/before day 1 of the month, in Kyiv TZ.
-  const gridStart = tzMondayOfWeek(monthStart);
-  const fetchEndDate = tzAddDays(gridStart, 42);
+  // Grid starts on Monday on/before day 1 of the month, in viewer TZ.
+  const gridStart = tzMondayOfWeek(monthStart, viewerTz);
+  const fetchEndDate = tzAddDays(gridStart, 42, viewerTz);
 
   const [profiles, entries] = await Promise.all([
     profile.is_admin ? fetchProfiles() : Promise.resolve([profile]),
@@ -58,11 +60,11 @@ export default async function CalendarPage({
     }),
   ]);
 
-  // Aggregate per Kyiv day.
+  // Aggregate per viewer-TZ day.
   const perDay = new Map<string, { minutes: number; entries: number }>();
   for (const e of entries) {
     if (e.ends_at === null) continue;
-    const key = isoDateTz(new Date(e.starts_at));
+    const key = isoDateTz(new Date(e.starts_at), viewerTz);
     const m = durationMinutes(e.starts_at, e.ends_at);
     const prev = perDay.get(key) ?? { minutes: 0, entries: 0 };
     perDay.set(key, {
@@ -80,9 +82,9 @@ export default async function CalendarPage({
     entries: number;
   }[] = [];
   for (let i = 0; i < 42; i++) {
-    const d = tzAddDays(gridStart, i);
-    const ymd = tzYmd(d);
-    const key = isoDateTz(d);
+    const d = tzAddDays(gridStart, i, viewerTz);
+    const ymd = tzYmd(d, viewerTz);
+    const key = isoDateTz(d, viewerTz);
     const agg = perDay.get(key) ?? { minutes: 0, entries: 0 };
     cells.push({
       date: d,
@@ -100,21 +102,21 @@ export default async function CalendarPage({
     cells = cells.slice(0, -7);
   }
 
-  const todayIso = isoDateTz(new Date());
+  const todayIso = isoDateTz(new Date(), viewerTz);
 
   const userParam = userIdFilter ? `&user=${userIdFilter}` : "";
-  const prevMonth = `/calendar?month=${isoMonthTz(tzDate(year, month - 1, 1))}${userParam}`;
-  const nextMonth = `/calendar?month=${isoMonthTz(tzDate(year, month + 1, 1))}${userParam}`;
+  const prevMonth = `/calendar?month=${isoMonthTz(tzDate(year, month - 1, 1, 0, 0, viewerTz), viewerTz)}${userParam}`;
+  const nextMonth = `/calendar?month=${isoMonthTz(tzDate(year, month + 1, 1, 0, 0, viewerTz), viewerTz)}${userParam}`;
   const todayLink = `/calendar${userIdFilter ? `?user=${userIdFilter}` : ""}`;
 
   const monthLabel = new Intl.DateTimeFormat("en-US", {
-    timeZone: TEAM_TZ,
+    timeZone: viewerTz,
     year: "numeric",
     month: "long",
   }).format(monthStart);
 
   const dayLink = (date: Date) => {
-    const day = isoDateTz(date);
+    const day = isoDateTz(date, viewerTz);
     const params = new URLSearchParams({ from: day, to: day });
     if (userIdFilter) params.set("user", userIdFilter);
     return `/history?${params.toString()}`;
@@ -204,7 +206,7 @@ export default async function CalendarPage({
             const classes = [
               "calendar-cell",
               c.inMonth ? "" : "outside",
-              isoDateTz(c.date) === todayIso ? "today" : "",
+              isoDateTz(c.date, viewerTz) === todayIso ? "today" : "",
               c.minutes > 0 ? "has-data" : "",
             ]
               .filter(Boolean)

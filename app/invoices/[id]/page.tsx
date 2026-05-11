@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { fetchInvoiceById } from "@/lib/db";
 import { formatDate, formatMoney, formatNum } from "@/lib/format";
+import { getViewerTz } from "@/lib/viewer-tz";
 import { PrintButton } from "@/components/print-button";
 import { ClientConfirmDelete } from "@/components/client-confirm-delete";
 import {
@@ -17,6 +18,7 @@ type Params = Promise<{ id: string }>;
 export default async function InvoicePage({ params }: { params: Params }) {
   const { id } = await params;
   const profile = await requireAdmin();
+  const viewerTz = await getViewerTz();
   const invoice = await fetchInvoiceById(id);
   if (!invoice) notFound();
 
@@ -103,7 +105,7 @@ export default async function InvoicePage({ params }: { params: Params }) {
               {invoice.number}
             </h1>
             <div className="mute" style={{ marginTop: 4 }}>
-              Issued {formatDate(invoice.issued_at)}
+              Issued {formatDate(invoice.issued_at, viewerTz)}
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -120,7 +122,7 @@ export default async function InvoicePage({ params }: { params: Params }) {
               {invoice.paid_at ? "PAID" : "UNPAID"}
             </div>
             {invoice.paid_at && (
-              <div className="card-sub">on {formatDate(invoice.paid_at)}</div>
+              <div className="card-sub">on {formatDate(invoice.paid_at, viewerTz)}</div>
             )}
           </div>
         </div>
@@ -172,8 +174,8 @@ export default async function InvoicePage({ params }: { params: Params }) {
           className="card-label"
           style={{ marginBottom: 8, fontFamily: "var(--font-mono)" }}
         >
-          Period: {formatDate(invoice.period_from)} →{" "}
-          {formatDate(invoice.period_to)}
+          Period: {formatDate(invoice.period_from, viewerTz)} →{" "}
+          {formatDate(invoice.period_to, viewerTz)}
         </div>
 
         <div className="ledger" style={{ marginTop: 16 }}>

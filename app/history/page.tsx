@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth";
 import { fetchEntries, fetchProfiles, fetchProjects } from "@/lib/db";
 import { rangeFromDates, rangeFromPreset, type Preset } from "@/lib/range";
+import { getViewerTz } from "@/lib/viewer-tz";
 import { EntriesGrouped } from "@/components/entries-grouped";
 import { FilterBar } from "@/components/filter-bar";
 import { ManualEntryForm } from "@/components/manual-entry-form";
@@ -33,16 +34,18 @@ export default async function HistoryPage({
 }) {
   const sp = await searchParams;
   const profile = await getCurrentProfile();
+  const viewerTz = await getViewerTz();
 
-  // Default range: this month, unless the URL says otherwise.
+  // Default range: this month, unless the URL says otherwise. All boundaries
+  // computed in the viewer's TZ — Yehor in Vietnam gets his week/month.
   let range;
   const preset = (sp.preset ?? "") as Preset;
   if (sp.from || sp.to) {
-    range = rangeFromDates(sp.from ?? null, sp.to ?? null);
+    range = rangeFromDates(sp.from ?? null, sp.to ?? null, viewerTz);
   } else if (PRESETS.has(preset)) {
-    range = rangeFromPreset(preset);
+    range = rangeFromPreset(preset, viewerTz);
   } else {
-    range = rangeFromPreset("thisMonth");
+    range = rangeFromPreset("thisMonth", viewerTz);
   }
 
   const [profiles, projects, entries] = await Promise.all([

@@ -2,25 +2,13 @@
 
 import { EntriesTable } from "./entries-table";
 import { formatDate } from "@/lib/format";
+import { tzAddDays, tzYmd } from "@/lib/tz";
 import type { EntryWithJoins, Project } from "@/lib/types";
+import { useViewerTz } from "./viewer-tz-provider";
 
-function localDayKey(iso: string): string {
-  const d = new Date(iso);
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-function todayKey(): string {
-  return localDayKey(new Date().toISOString());
-}
-
-function yesterdayKey(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return localDayKey(d.toISOString());
+function dayKey(d: Date, tz: string): string {
+  const { year, month, day } = tzYmd(d, tz);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export function EntriesGrouped({
@@ -36,6 +24,8 @@ export function EntriesGrouped({
   isAdmin: boolean;
   emptyText?: string;
 }) {
+  const viewerTz = useViewerTz();
+
   if (entries.length === 0) {
     return (
       <div className="form mute" style={{ textAlign: "center" }}>
@@ -46,16 +36,16 @@ export function EntriesGrouped({
 
   const groups = new Map<string, EntryWithJoins[]>();
   for (const e of entries) {
-    const k = localDayKey(e.starts_at);
+    const k = dayKey(new Date(e.starts_at), viewerTz);
     const arr = groups.get(k);
     if (arr) arr.push(e);
     else groups.set(k, [e]);
   }
   const days = [...groups.keys()].sort().reverse();
-  const today = todayKey();
-  const yesterday = yesterdayKey();
+  const today = dayKey(new Date(), viewerTz);
+  const yesterday = dayKey(tzAddDays(new Date(), -1, viewerTz), viewerTz);
   const label = (k: string) =>
-    k === today ? "TODAY" : k === yesterday ? "YESTERDAY" : formatDate(k);
+    k === today ? "TODAY" : k === yesterday ? "YESTERDAY" : formatDate(k, viewerTz);
 
   return (
     <>

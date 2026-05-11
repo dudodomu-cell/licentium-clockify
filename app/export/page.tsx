@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { fetchEntries, fetchProfiles, fetchProjects } from "@/lib/db";
+import { getViewerTz } from "@/lib/viewer-tz";
 import {
   rangeFromDates,
   rangeFromPreset,
@@ -42,15 +43,16 @@ export default async function ExportPage({
 }) {
   const sp = await searchParams;
   await requireAdmin(); // admin-only — exports include money
+  const viewerTz = await getViewerTz();
 
   let range;
   const preset = (sp.preset ?? "") as Preset;
   if (sp.from || sp.to) {
-    range = rangeFromDates(sp.from ?? null, sp.to ?? null);
+    range = rangeFromDates(sp.from ?? null, sp.to ?? null, viewerTz);
   } else if (PRESETS.has(preset)) {
-    range = rangeFromPreset(preset);
+    range = rangeFromPreset(preset, viewerTz);
   } else {
-    range = rangeFromPreset("thisMonth");
+    range = rangeFromPreset("thisMonth", viewerTz);
   }
 
   const [profiles, projects, entries] = await Promise.all([
@@ -107,10 +109,10 @@ export default async function ExportPage({
     ? projects.find((p) => p.id === sp.project)?.name
     : null;
 
-  const periodFromLabel = range.from ? formatDate(range.from) : "—";
+  const periodFromLabel = range.from ? formatDate(range.from, viewerTz) : "—";
   const periodToLabel = range.to
-    ? formatDate(new Date(range.to.getTime() - 1))
-    : formatDate(new Date());
+    ? formatDate(new Date(range.to.getTime() - 1), viewerTz)
+    : formatDate(new Date(), viewerTz);
 
   return (
     <main>

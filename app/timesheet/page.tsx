@@ -3,22 +3,23 @@ import { getCurrentProfile } from "@/lib/auth";
 import { fetchEntries, fetchProfiles, fetchProjects } from "@/lib/db";
 import { durationMinutes, formatDate, formatDuration } from "@/lib/format";
 import { tzAddDays, tzDate, tzMondayOfWeek, tzYmd } from "@/lib/tz";
+import { getViewerTz } from "@/lib/viewer-tz";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ week?: string; user?: string }>;
 
-function isoDateTz(d: Date): string {
-  const { year, month, day } = tzYmd(d);
+function isoDateTz(d: Date, tz: string): string {
+  const { year, month, day } = tzYmd(d, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function parseWeek(weekStr: string | undefined): Date {
+function parseWeek(weekStr: string | undefined, tz: string): Date {
   if (weekStr) {
     const [y, m, d] = weekStr.split("-").map(Number);
-    if (y && m && d) return tzMondayOfWeek(tzDate(y, m, d));
+    if (y && m && d) return tzMondayOfWeek(tzDate(y, m, d, 0, 0, tz), tz);
   }
-  return tzMondayOfWeek();
+  return tzMondayOfWeek(new Date(), tz);
 }
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -30,10 +31,11 @@ export default async function TimesheetPage({
 }) {
   const sp = await searchParams;
   const profile = await getCurrentProfile();
+  const viewerTz = await getViewerTz();
 
-  const weekStart = parseWeek(sp.week);
-  const weekEnd = tzAddDays(weekStart, 7);
-  const days = Array.from({ length: 7 }, (_, i) => tzAddDays(weekStart, i));
+  const weekStart = parseWeek(sp.week, viewerTz);
+  const weekEnd = tzAddDays(weekStart, 7, viewerTz);
+  const days = Array.from({ length: 7 }, (_, i) => tzAddDays(weekStart, i, viewerTz));
 
   // Members are pinned to themselves regardless of URL.
   const userIdFilter = profile.is_admin ? sp.user || undefined : profile.id;
@@ -91,12 +93,12 @@ export default async function TimesheetPage({
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
 
   const userParam = userIdFilter ? `&user=${userIdFilter}` : "";
-  const prev = `/timesheet?week=${isoDateTz(tzAddDays(weekStart, -7))}${userParam}`;
-  const next = `/timesheet?week=${isoDateTz(tzAddDays(weekStart, 7))}${userParam}`;
+  const prev = `/timesheet?week=${isoDateTz(tzAddDays(weekStart, -7, viewerTz), viewerTz)}${userParam}`;
+  const next = `/timesheet?week=${isoDateTz(tzAddDays(weekStart, 7, viewerTz), viewerTz)}${userParam}`;
   const today = `/timesheet${userIdFilter ? `?user=${userIdFilter}` : ""}`;
 
   const cellLink = (dayIdx: number, projectKey: string) => {
-    const day = isoDateTz(days[dayIdx]);
+    const day = isoDateTz(days[dayIdx], viewerTz);
     const params = new URLSearchParams({ from: day, to: day });
     if (userIdFilter) params.set("user", userIdFilter);
     if (projectKey !== "__none__") params.set("project", projectKey);
@@ -118,7 +120,7 @@ export default async function TimesheetPage({
       <section>
         <div className="section-head">
           <div className="section-num">
-            <b>01 /</b> Week of {formatDate(weekStart)}
+            <b>01 /</b> Week of {formatDate(weekStart, viewerTz)}
           </div>
           <div className="section-actions">
             <Link href={prev} className="btn">
@@ -134,12 +136,12 @@ export default async function TimesheetPage({
         </div>
 
         <div className="section-num mute" style={{ marginBottom: 16 }}>
-          {formatDate(weekStart)} → {formatDate(tzAddDays(weekStart, 6))}
+          {formatDate(weekStart, viewerTz)} → {formatDate(tzAddDays(weekStart, 6, viewerTz), viewerTz)}
         </div>
 
         {profile.is_admin && (
           <form method="get" action="/timesheet" className="filters">
-            <input type="hidden" name="week" value={isoDateTz(weekStart)} />
+            <input type="hidden" name="week" value={isoDateTz(weekStart, viewerTz)} />
             <label className="field">
               User
               <select
@@ -159,7 +161,7 @@ export default async function TimesheetPage({
               Apply
             </button>
             <Link
-              href={`/timesheet?week=${isoDateTz(weekStart)}`}
+              href={`/timesheet?week=${isoDateTz(weekStart, viewerTz)}`}
               className="btn"
             >
               Reset
@@ -175,7 +177,7 @@ export default async function TimesheetPage({
             >
               <div>Project</div>
               {days.map((d, i) => {
-                const ymd = tzYmd(d);
+                const ymd = tzYmd(d, viewerTz);
                 return (
                   <div key={i} className="num">
                     {DAY_LABELS[i]}

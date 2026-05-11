@@ -7,6 +7,7 @@ import {
 } from "@/app/actions";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Invoice } from "@/lib/types";
+import { useViewerTz } from "./viewer-tz-provider";
 
 export function InvoiceList({
   invoices,
@@ -15,6 +16,7 @@ export function InvoiceList({
   invoices: Invoice[];
   isAdmin: boolean;
 }) {
+  const viewerTz = useViewerTz();
   if (invoices.length === 0) {
     return (
       <div className="form mute" style={{ textAlign: "center" }}>
@@ -50,9 +52,9 @@ export function InvoiceList({
           <div className="label-cell" style={{ fontFamily: "var(--font-mono)" }}>
             <Link href={`/invoices/${inv.id}`}>{inv.number}</Link>
           </div>
-          <div className="date-cell">{formatDate(inv.issued_at)}</div>
+          <div className="date-cell">{formatDate(inv.issued_at, viewerTz)}</div>
           <div className="date-cell">
-            {formatDate(inv.period_from)} → {formatDate(inv.period_to)}
+            {formatDate(inv.period_from, viewerTz)} → {formatDate(inv.period_to, viewerTz)}
           </div>
           <div className="label-cell">{inv.recipient_name}</div>
           <div className="num">

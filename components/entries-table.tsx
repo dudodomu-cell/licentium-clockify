@@ -13,7 +13,9 @@ import {
   formatTime,
   toDateTimeLocal,
 } from "@/lib/format";
+import { sameTzDay, tzDayDelta } from "@/lib/tz";
 import type { EntryWithJoins, Project } from "@/lib/types";
+import { useViewerTz } from "./viewer-tz-provider";
 
 type Props = {
   entries: EntryWithJoins[];
@@ -30,6 +32,7 @@ export function EntriesTable({
   isAdmin,
   emptyText = "No entries.",
 }: Props) {
+  const viewerTz = useViewerTz();
   if (entries.length === 0) {
     return <div className="form mute" style={{ textAlign: "center" }}>{emptyText}</div>;
   }
@@ -62,6 +65,7 @@ export function EntriesTable({
           entry={e}
           projects={projects}
           canEdit={isAdmin || e.user_id === currentUserId}
+          viewerTz={viewerTz}
         />
       ))}
       <div className="ledger-row foot entries-grid">
@@ -82,10 +86,12 @@ function EntryRow({
   entry,
   projects,
   canEdit,
+  viewerTz,
 }: {
   entry: EntryWithJoins;
   projects: Project[];
   canEdit: boolean;
+  viewerTz: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -96,6 +102,7 @@ function EntryRow({
         entry={entry}
         projects={projects}
         onDone={() => setEditing(false)}
+        viewerTz={viewerTz}
       />
     );
   }
@@ -103,6 +110,10 @@ function EntryRow({
   const minutes = durationMinutes(entry.starts_at, entry.ends_at);
   const amount = (minutes / 60) * Number(entry.rate);
   const running = entry.ends_at === null;
+  // Cross-midnight indicator: how many local days the entry spans.
+  const dayDelta = !running && entry.ends_at
+    ? tzDayDelta(entry.starts_at, entry.ends_at, viewerTz)
+    : 0;
 
   const handleDelete = async (formData: FormData) => {
     if (!confirm("Delete this entry?")) return;
@@ -143,9 +154,30 @@ function EntryRow({
       <div>
         <span className="pill user">{entry.user_name}</span>
       </div>
-      <div className="num date-cell">{formatTime(entry.starts_at)}</div>
+      <div className="num date-cell">{formatTime(entry.starts_at, viewerTz)}</div>
       <div className="num date-cell">
-        {entry.ends_at ? formatTime(entry.ends_at) : <span className="dim">—</span>}
+        {entry.ends_at ? (
+          <>
+            {formatTime(entry.ends_at, viewerTz)}
+            {dayDelta > 0 && (
+              <span
+                className="pill"
+                style={{
+                  marginLeft: 6,
+                  fontSize: 9,
+                  padding: "1px 5px",
+                  color: "var(--warning)",
+                  borderColor: "var(--warning)",
+                }}
+                title={`Ends ${dayDelta} day${dayDelta === 1 ? "" : "s"} later`}
+              >
+                +{dayDelta}d
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="dim">—</span>
+        )}
       </div>
       <div className="num">{formatDuration(minutes)}</div>
       <div className="num">{formatMoney(amount)}</div>
@@ -200,10 +232,12 @@ function EntryEditRow({
   entry,
   projects,
   onDone,
+  viewerTz,
 }: {
   entry: EntryWithJoins;
   projects: Project[];
   onDone: () => void;
+  viewerTz: string;
 }) {
   const handle = async (formData: FormData) => {
     await updateEntryAction(formData);
@@ -248,7 +282,7 @@ function EntryEditRow({
             className="input"
             type="datetime-local"
             name="starts_at"
-            defaultValue={toDateTimeLocal(entry.starts_at)}
+            defaultValue={toDateTimeLocal(entry.starts_at, viewerTz)}
             required
           />
         </label>
@@ -258,7 +292,7 @@ function EntryEditRow({
             className="input"
             type="datetime-local"
             name="ends_at"
-            defaultValue={toDateTimeLocal(entry.ends_at)}
+            defaultValue={toDateTimeLocal(entry.ends_at, viewerTz)}
           />
         </label>
         <label className="field">

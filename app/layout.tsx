@@ -1,6 +1,9 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { TopBar } from "@/components/top-bar";
+import { ViewerTzProvider } from "@/components/viewer-tz-provider";
+import { ViewerTzWriter } from "@/components/viewer-tz-writer";
+import { getViewerTz } from "@/lib/viewer-tz";
 
 export const metadata: Metadata = {
   title: "Licentium Clockify",
@@ -24,11 +27,12 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const viewerTz = await getViewerTz();
   return (
     <html lang="en">
       <head>
@@ -44,8 +48,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <TopBar />
-        {children}
+        <ViewerTzProvider tz={viewerTz}>
+          <ViewerTzWriter />
+          <TopBar />
+          {children}
+        </ViewerTzProvider>
       </body>
     </html>
   );

@@ -9,6 +9,7 @@ import {
 import { formatDate, formatMoney } from "@/lib/format";
 import type { PaymentWithUser, Profile } from "@/lib/types";
 import { DatePicker } from "./date-picker";
+import { useViewerTz } from "./viewer-tz-provider";
 
 type Props = {
   payments: PaymentWithUser[];
@@ -23,6 +24,7 @@ export function PaymentsList({
   currentUserId,
   isAdmin,
 }: Props) {
+  const viewerTz = useViewerTz();
   return (
     <>
       <NewPaymentForm
@@ -51,6 +53,7 @@ export function PaymentsList({
               key={p.id}
               payment={p}
               canEdit={isAdmin || p.user_id === currentUserId}
+              viewerTz={viewerTz}
             />
           ))}
         </div>
@@ -145,9 +148,11 @@ function NewPaymentForm({
 function PaymentRow({
   payment,
   canEdit,
+  viewerTz,
 }: {
   payment: PaymentWithUser;
   canEdit: boolean;
+  viewerTz: string;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -165,7 +170,7 @@ function PaymentRow({
       className="ledger-row"
       style={{ gridTemplateColumns: "0.7fr 1.2fr 0.8fr 1.6fr auto" }}
     >
-      <div className="date-cell">{formatDate(payment.paid_at)}</div>
+      <div className="date-cell">{formatDate(payment.paid_at, viewerTz)}</div>
       <div>
         <span className="pill user">{payment.user_name}</span>
       </div>

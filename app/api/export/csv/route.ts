@@ -7,6 +7,7 @@ import {
   type Preset,
 } from "@/lib/range";
 import { durationMinutes, formatDate, formatTime } from "@/lib/format";
+import { getViewerTz } from "@/lib/viewer-tz";
 
 const PRESETS = new Set<Preset>([
   "today",
@@ -47,14 +48,15 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const sp = Object.fromEntries(url.searchParams);
+  const viewerTz = await getViewerTz();
 
   let range;
   if (sp.from || sp.to) {
-    range = rangeFromDates(sp.from ?? null, sp.to ?? null);
+    range = rangeFromDates(sp.from ?? null, sp.to ?? null, viewerTz);
   } else if (sp.preset && PRESETS.has(sp.preset as Preset)) {
-    range = rangeFromPreset(sp.preset as Preset);
+    range = rangeFromPreset(sp.preset as Preset, viewerTz);
   } else {
-    range = rangeFromPreset("thisMonth");
+    range = rangeFromPreset("thisMonth", viewerTz);
   }
 
   const entries = await fetchEntries({
@@ -87,9 +89,9 @@ export async function GET(request: NextRequest) {
     const hours = m / 60;
     const amount = hours * Number(e.rate);
     return [
-      formatDate(e.starts_at),
-      formatTime(e.starts_at),
-      e.ends_at ? formatTime(e.ends_at) : "",
+      formatDate(e.starts_at, viewerTz),
+      formatTime(e.starts_at, viewerTz),
+      e.ends_at ? formatTime(e.ends_at, viewerTz) : "",
       e.user_name,
       e.user_email,
       e.project_name ?? "",
