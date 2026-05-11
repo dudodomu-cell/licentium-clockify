@@ -2,30 +2,31 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth";
 import { fetchEntries, fetchProfiles } from "@/lib/db";
 import { durationMinutes, formatDuration } from "@/lib/format";
+import { TEAM_TZ, tzAddDays, tzDate, tzMondayOfWeek, tzYmd } from "@/lib/tz";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ month?: string; user?: string }>;
 
-function isoDate(d: Date): string {
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-");
+function isoDateTz(d: Date): string {
+  const { year, month, day } = tzYmd(d);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function isoMonth(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function isoMonthTz(d: Date): string {
+  const { year, month } = tzYmd(d);
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-function parseMonth(monthStr: string | undefined): { year: number; month: number } {
+function parseMonth(
+  monthStr: string | undefined,
+): { year: number; month: number } {
   if (monthStr) {
     const [y, m] = monthStr.split("-").map(Number);
     if (y && m >= 1 && m <= 12) return { year: y, month: m };
   }
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  const ymd = tzYmd(new Date());
+  return { year: ymd.year, month: ymd.month };
 }
 
 const WEEK_HEADER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -39,37 +40,29 @@ export default async function CalendarPage({
   const profile = await getCurrentProfile();
 
   const { year, month } = parseMonth(sp.month);
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 1); // exclusive
+  const monthStart = tzDate(year, month, 1);
+  const monthEnd = tzDate(year, month + 1, 1); // exclusive
 
-  // Members pinned to themselves; admins can filter.
   const userIdFilter = profile.is_admin ? sp.user || undefined : profile.id;
 
-  // Determine the grid start (Monday on/before day 1 of month).
-  const dow = monthStart.getDay(); // 0=Sun, 1=Mon
-  const offset = dow === 0 ? -6 : 1 - dow;
-  const gridStart = new Date(monthStart);
-  gridStart.setDate(gridStart.getDate() + offset);
-
-  // Fetch entries from gridStart to ~6 weeks later (to cover all visible cells).
-  const fetchStart = new Date(gridStart);
-  const fetchEnd = new Date(gridStart);
-  fetchEnd.setDate(fetchEnd.getDate() + 42);
+  // Grid starts on Monday on/before day 1 of the month, in Kyiv TZ.
+  const gridStart = tzMondayOfWeek(monthStart);
+  const fetchEndDate = tzAddDays(gridStart, 42);
 
   const [profiles, entries] = await Promise.all([
     profile.is_admin ? fetchProfiles() : Promise.resolve([profile]),
     fetchEntries({
-      since: fetchStart.toISOString(),
-      until: fetchEnd.toISOString(),
+      since: gridStart.toISOString(),
+      until: fetchEndDate.toISOString(),
       userId: userIdFilter,
     }),
   ]);
 
-  // Aggregate per-day.
+  // Aggregate per Kyiv day.
   const perDay = new Map<string, { minutes: number; entries: number }>();
   for (const e of entries) {
     if (e.ends_at === null) continue;
-    const key = isoDate(new Date(e.starts_at));
+    const key = isoDateTz(new Date(e.starts_at));
     const m = durationMinutes(e.starts_at, e.ends_at);
     const prev = perDay.get(key) ?? { minutes: 0, entries: 0 };
     perDay.set(key, {
@@ -78,26 +71,28 @@ export default async function CalendarPage({
     });
   }
 
-  // Build 6 weeks × 7 days grid.
+  // 6 weeks × 7 days grid.
   let cells: {
     date: Date;
+    day: number;
     inMonth: boolean;
     minutes: number;
     entries: number;
   }[] = [];
   for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart);
-    d.setDate(d.getDate() + i);
-    const key = isoDate(d);
+    const d = tzAddDays(gridStart, i);
+    const ymd = tzYmd(d);
+    const key = isoDateTz(d);
     const agg = perDay.get(key) ?? { minutes: 0, entries: 0 };
     cells.push({
       date: d,
-      inMonth: d.getMonth() === month - 1,
+      day: ymd.day,
+      inMonth: ymd.year === year && ymd.month === month,
       minutes: agg.minutes,
       entries: agg.entries,
     });
   }
-  // Trim trailing weeks that are entirely outside the month and have no data.
+  // Trim trailing weeks that are entirely outside the month and empty.
   while (
     cells.length > 28 &&
     cells.slice(-7).every((c) => !c.inMonth && c.minutes === 0)
@@ -105,20 +100,21 @@ export default async function CalendarPage({
     cells = cells.slice(0, -7);
   }
 
-  const todayIso = isoDate(new Date());
+  const todayIso = isoDateTz(new Date());
 
   const userParam = userIdFilter ? `&user=${userIdFilter}` : "";
-  const prevMonth = `/calendar?month=${isoMonth(new Date(year, month - 2, 1))}${userParam}`;
-  const nextMonth = `/calendar?month=${isoMonth(new Date(year, month, 1))}${userParam}`;
+  const prevMonth = `/calendar?month=${isoMonthTz(tzDate(year, month - 1, 1))}${userParam}`;
+  const nextMonth = `/calendar?month=${isoMonthTz(tzDate(year, month + 1, 1))}${userParam}`;
   const todayLink = `/calendar${userIdFilter ? `?user=${userIdFilter}` : ""}`;
 
-  const monthLabel = monthStart.toLocaleDateString("en-US", {
+  const monthLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: TEAM_TZ,
     year: "numeric",
     month: "long",
-  });
+  }).format(monthStart);
 
   const dayLink = (date: Date) => {
-    const day = isoDate(date);
+    const day = isoDateTz(date);
     const params = new URLSearchParams({ from: day, to: day });
     if (userIdFilter) params.set("user", userIdFilter);
     return `/history?${params.toString()}`;
@@ -208,14 +204,14 @@ export default async function CalendarPage({
             const classes = [
               "calendar-cell",
               c.inMonth ? "" : "outside",
-              isoDate(c.date) === todayIso ? "today" : "",
+              isoDateTz(c.date) === todayIso ? "today" : "",
               c.minutes > 0 ? "has-data" : "",
             ]
               .filter(Boolean)
               .join(" ");
             return (
               <Link key={i} href={dayLink(c.date)} className={classes}>
-                <div className="calendar-day-num">{c.date.getDate()}</div>
+                <div className="calendar-day-num">{c.day}</div>
                 {c.minutes > 0 && (
                   <>
                     <div className="calendar-day-total">

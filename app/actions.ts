@@ -6,6 +6,7 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 import { fetchEntries, fetchInvoiceSettings } from "@/lib/db";
 import { durationMinutes } from "@/lib/format";
 import { notifySlack } from "@/lib/slack";
+import { localToUtcIso } from "@/lib/tz";
 import type { InvoiceLineItem } from "@/lib/types";
 
 // ---------------------------------------------------------------
@@ -128,8 +129,8 @@ export async function createEntryAction(formData: FormData) {
     user_id: user.id,
     project_id: projectId,
     description,
-    starts_at: new Date(startsAt).toISOString(),
-    ends_at: new Date(endsAt).toISOString(),
+    starts_at: localToUtcIso(startsAt),
+    ends_at: localToUtcIso(endsAt),
     rate,
   });
 
@@ -150,10 +151,10 @@ export async function updateEntryAction(formData: FormData) {
   const patch: Record<string, unknown> = {
     description,
     project_id: projectId,
-    starts_at: new Date(startsAt).toISOString(),
+    starts_at: localToUtcIso(startsAt),
     rate,
   };
-  patch.ends_at = endsAt ? new Date(endsAt).toISOString() : null;
+  patch.ends_at = endsAt ? localToUtcIso(endsAt) : null;
 
   // RLS enforces that only the owner (or an admin) can perform this update.
   const { error } = await supabase

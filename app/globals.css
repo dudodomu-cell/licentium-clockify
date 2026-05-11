@@ -257,6 +257,12 @@ section { margin-bottom: 64px; }
 }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); }
 .input[type="date"], .input[type="time"], .input[type="datetime-local"] { font-family: var(--font-mono); font-size: 13px; }
+/* Native datetime-local renders dd.mm.yyyy hh:mm + a picker icon; the icon
+   steals ~24px so a tight column clips the trailing digit. Give these inputs
+   enough room. */
+.input[type="datetime-local"] { min-width: 210px; }
+.input[type="date"]           { min-width: 150px; }
+.input[type="time"]           { min-width: 110px; }
 .input.mono { font-family: var(--font-mono); }
 .input.num { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
 .input.sm, .select.sm { padding: 6px 8px; font-size: 13px; }
