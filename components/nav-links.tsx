@@ -7,6 +7,8 @@ type Link = { href: string; label: string; admin?: boolean };
 
 const LINKS: Link[] = [
   { href: "/", label: "Dashboard" },
+  { href: "/timesheet", label: "Timesheet" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/history", label: "History" },
   { href: "/projects", label: "Projects" },
   { href: "/payments", label: "Payments" },
