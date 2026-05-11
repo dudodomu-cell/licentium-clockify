@@ -1,10 +1,27 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { TopBar } from "@/components/top-bar";
 
 export const metadata: Metadata = {
   title: "Licentium Clockify",
-  description: "Internal time tracker",
+  description: "Internal time tracker for Licentium",
+  manifest: "/manifest.webmanifest",
+  // iOS Safari "Add to Home Screen" honors these.
+  appleWebApp: {
+    capable: true,
+    title: "Clockify",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  // Lets the page render under the iOS notch / Dynamic Island when in
+  // standalone (PWA) mode.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
