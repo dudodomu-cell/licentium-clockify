@@ -77,7 +77,7 @@ DECLARE
   admin_emails TEXT[] := ARRAY[
     'dmytro.o@licentium.io',
     'illia@prokopievlaw.com',
-    'iliia.p@licentium.io',
+    'illia.p@licentium.io',
     'daria.p@licentium.io'
   ];
 BEGIN
@@ -345,7 +345,7 @@ SELECT
   u.email IN (
     'dmytro.o@licentium.io',
     'illia@prokopievlaw.com',
-    'iliia.p@licentium.io',
+    'illia.p@licentium.io',
     'daria.p@licentium.io'
   )
 FROM auth.users u
