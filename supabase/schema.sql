@@ -76,7 +76,8 @@ RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   admin_emails TEXT[] := ARRAY[
     'dmytro.o@licentium.io',
-    'illia@prokopievlaw.com'
+    'illia@prokopievlaw.com',
+    'daria.p@licentium.io'
   ];
 BEGIN
   INSERT INTO public.profiles (id, email, full_name, default_rate, is_admin)
@@ -340,6 +341,10 @@ SELECT
   u.email,
   COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)),
   15,
-  u.email IN ('dmytro.o@licentium.io', 'illia@prokopievlaw.com')
+  u.email IN (
+    'dmytro.o@licentium.io',
+    'illia@prokopievlaw.com',
+    'daria.p@licentium.io'
+  )
 FROM auth.users u
 ON CONFLICT (id) DO NOTHING;
